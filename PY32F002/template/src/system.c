@@ -37,7 +37,7 @@ void SYS_init(void) {
 // Init internal oscillator (non PLL) as system clock source
 void CLK_init_HSI(void) {
   #if CLK_DIV > 0
-  RCC->CR = CLK_DIV | RCC_RC_HSION;                       // set HSI divisor
+  RCC->CR = CLK_DIV | RCC_CR_HSION;                       // set HSI divisor
   #endif
   RCC->ICSCR = (RCC->ICSCR & 0xFFFF0000) | CLK_MASK;      // set HSI freq and calibration
 }
@@ -297,12 +297,16 @@ void __libc_init_array(void) {
 // ===================================================================================
 // C version of PY32F030 Startup .s file
 // ===================================================================================
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern uint32_t _sbss, _ebss, _sdata, _edata, _sidata;
 extern void _estack(void);
 
 // Prototypes
 int main(void)                __attribute__((section(".text.main"), used));
-void (*const vectors[])(void) __attribute__((section(".isr_vector"), used));
 void Reset_Handler(void)      __attribute__((section(".text.irq_handler"), naked, used, noreturn));
 
 #if SYS_USE_VECTORS > 0
@@ -311,7 +315,7 @@ void Default_Handler(void)    __attribute__((section(".text.irq_handler"), naked
 void Default_Handler(void)    { while(1); }
 
 // All interrupt handlers are aliased to default_handler unless overridden individually
-#define DUMMY_HANDLER __attribute__((section(".text.irq_handler"), weak, alias("Default_Handler"), used))
+#define DUMMY_HANDLER __attribute__((section(".text.irq_handler"), weak, alias("Default_Handler"), used, nothrow))
 DUMMY_HANDLER void NMI_Handler(void);
 DUMMY_HANDLER void HardFault_Handler(void);
 DUMMY_HANDLER void SVC_Handler(void);
@@ -352,7 +356,7 @@ DUMMY_HANDLER void USB_IRQHandler(void);
 #endif  // SYS_USE_VECTORS > 0
 
 // Interrupt vector table
-void (*const vectors[])(void) = {
+void (*const vectors[])(void) __attribute__((section(".isr_vector"), used)) = {
   &_estack,                       //  0 - Initial Stack Pointer Value
 
   // Cortex-M0+ handlers
@@ -446,3 +450,7 @@ void Reset_Handler(void) {
   main();
   while(1);
 }
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
